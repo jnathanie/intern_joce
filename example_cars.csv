@@ -1,0 +1,5 @@
+name,price,type,fuel_economy,engine,features,safety_rating,seating_capacity,description
+Toyota Camry,25000,Sedan,32 mpg combined,2.5L 4-cylinder,"Adaptive Cruise Control,Lane Keep Assist,Apple CarPlay",5 stars,5,"The Toyota Camry is a reliable mid-size sedan known for excellent fuel economy and safety"
+Honda Accord,27000,Sedan,33 mpg combined,1.5L Turbo 4-cylinder,"Honda Sensing,Wireless Charging,Heated Seats",5 stars,5,"Sporty performance with practical efficiency, ideal for daily commuting"
+Ford F-150,35000,Pickup Truck,25 mpg combined,3.3L V6,"Towing Package,4WD,Sync 4 Infotainment",4 stars,6,"America's best-selling truck with unmatched versatility and capability"
+Tesla Model 3,40000,Electric Sedan,120 MPGe,Electric Motor,"Autopilot,Over-the-Air Updates,Supercharging",5 stars,5,"Revolutionary electric vehicle with cutting-edge technology and zero emissions"
