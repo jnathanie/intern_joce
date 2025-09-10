@@ -1,0 +1,21 @@
+# Core web framework
+flask
+flask-cors
+
+# AI and ML libraries
+google-generativeai
+faiss-cpu
+numpy
+
+# Data processing
+pandas
+pydantic
+
+# Environment and configuration
+python-dotenv
+
+# HTTP requests
+requests
+
+# Streamlit for web UI
+streamlit
