@@ -17,8 +17,7 @@
     "suspensi_belakang": "Rigid Suspension dengan Multi Leaf Spring",
     "panjang_cargo": 6440,
     "lebar_cargo": 2400,
-    "tinggi_cargo": 2444,
-    "features": []
+    "tinggi_cargo": 2444
   },
   {
     "nama": "TRAGA BLIND VAN",
@@ -38,8 +37,7 @@
     "suspensi_belakang": "Leaf spring type",
     "panjang_cargo": 2900,
     "lebar_cargo": 1520,
-    "tinggi_cargo": 1200,
-    "features": []
+    "tinggi_cargo": 1200
   },
   {
     "nama": "GIGA-GXZ K ABS",
@@ -59,8 +57,7 @@
     "suspensi_belakang": "Semi-elliptical alloy steel leaf",
     "panjang_cargo": 5350,
     "lebar_cargo": 2495,
-    "tinggi_cargo": 2660,
-    "features": []
+    "tinggi_cargo": 2660
   },
   {
     "nama": "GIGA-GVZ K HP ABS",
@@ -80,8 +77,7 @@
     "suspensi_belakang": "Semi-elliptical alloy steel leaf",
     "panjang_cargo": 5350,
     "lebar_cargo": 2495,
-    "tinggi_cargo": 2660,
-    "features": []
+    "tinggi_cargo": 2660
   },
   {
     "nama": "GIGA-GVR J HP ABS",
@@ -101,8 +97,7 @@
     "suspensi_belakang": "Multileaf",
     "panjang_cargo": 4610,
     "lebar_cargo": 2485,
-    "tinggi_cargo": 2680,
-    "features": []
+    "tinggi_cargo": 2680
   },
   {
     "nama": "ELF-NLR 55T X",
@@ -122,8 +117,7 @@
     "suspensi_belakang": "Semi eliptical laminated leaf spring dengan shock absorber berdaya ganda",
     "panjang_cargo": 3127,
     "lebar_cargo": 1835,
-    "tinggi_cargo": 1985,
-    "features": []
+    "tinggi_cargo": 1985
   },
   {
     "nama": "ELF-NMR",
@@ -143,8 +137,7 @@
     "suspensi_belakang": "Semi eliptical laminated leaf spring dengan shock absorber berdaya ganda",
     "panjang_cargo": 4830,
     "lebar_cargo": 1920,
-    "tinggi_cargo": 2125,
-    "features": []
+    "tinggi_cargo": 2125
   },
   {
     "nama": "TRAGA-CHASSIS NON BLOWER",
@@ -164,7 +157,26 @@
     "suspensi_belakang": "Leaf spring type",
     "panjang_cargo": 2810,
     "lebar_cargo": 1695,
-    "tinggi_cargo": 1400,
-    "features": []
+    "tinggi_cargo": 1400
+  },
+  {
+    "nama": "ELF-NLR 71T",
+    "deskripsi": "Truk ringan andal dan efisien yang dirancang untuk kebutuhan transportasi kargo harian dengan kapasitas muatan yang lebih besar. Dengan sasis yang kokoh dan mesin yang efisien, unit ini sangat cocok untuk bisnis yang membutuhkan volume angkut lebih tanpa mengorbankan kelincahan. Ideal untuk distribusi barang konsumsi, bahan bangunan, atau logistik umum di perkotaan maupun antar kota, menawarkan keseimbangan sempurna antara performa dan biaya operasional.",
+    "panjang_mobil": 4700,
+    "lebar_mobil": 1835,
+    "tinggi_mobil": 2200,
+    "kapasitas_tangki": 75,
+    "mesin": "4JB1-TC",
+    "kapasitas_mesin": 4570,
+    "tenaga_maksimum_PS": 125,
+    "tenaga_maksimum_rpm": 2900,
+    "torsi_maksimum_Kgm": 35,
+    "torsi_maksimum_rpm_min": 1200,
+    "torsi_maksimum_rpm_max": 2200,
+    "suspensi_depan": "Semi eliptical laminated leaf spring dengan shock absorber berdaya ganda",
+    "suspensi_belakang": "Semi eliptical laminated leaf spring dengan shock absorber berdaya ganda",
+    "panjang_cargo": 3127,
+    "lebar_cargo": 1835,
+    "tinggi_cargo": 1985
   }
 ]

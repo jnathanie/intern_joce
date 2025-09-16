@@ -39,10 +39,10 @@ def load_csv_data(csv_file):
             # ===== MODIFY THIS SECTION: Convert comma-separated fields to lists =====
             # This takes fields like "GPS, Bluetooth, AC" and makes them ["GPS", "Bluetooth", "AC"]
             # ADD/REMOVE field names as needed for your CSV:
-            if 'features' in row and row['features']:
-                row['features'] = [f.strip() for f in row['features'].split(',')]
-            else:
-                row['features'] = []
+            # if 'features' in row and row['features']:
+            #     row['features'] = [f.strip() for f in row['features'].split(',')]
+            # else:
+            #     row['features'] = []
             # Example: if you have a 'colors' field, add this:
             # if 'colors' in row and row['colors']:
             #     row['colors'] = [c.strip() for c in row['colors'].split(',')]

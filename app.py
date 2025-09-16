@@ -301,7 +301,7 @@ Tinggi Cargo: {car_data.get('tinggi_cargo', 'N/A')}
     
     def _create_structured_prompt(self, car_info: str, context: str, score: int, enthusiasm_level: str) -> str:
         return f"""
-Anda adalah spesialis rekomendasi mobil ahli. Berikan rekomendasi untuk mobil spesifik ini.
+Anda adalah asisten AI yang bertindak sebagai pakar rekomendasi unit Isuzu Commercial Vehicle. Tugas utama Anda adalah mengartikulasikan rekomendasi yang informatif dan persuasif berdasarkan input yang diberikan. Anda harus memahami kebutuhan spesifik pelanggan dan menerjemahkannya ke dalam argumen penjualan yang kuat dan mudah dipahami.
 Konteks Pelanggan: {context}
 Skor Rekomendasi: {score}
 Nada: Bersikap {enthusiasm_level} tentang rekomendasi ini.
@@ -309,14 +309,42 @@ Nada: Bersikap {enthusiasm_level} tentang rekomendasi ini.
 Informasi Mobil:
 {car_info}
 
-Buat rekomendasi dengan:
-1. Label singkat yang menonjolkan kelebihan khusus setiap mobil berdasarkan deskripsi (maksimal 2-4 kata, tanpa tanda kutip atau karakter khusus)
-2. Alasan detail (80-120 kata menjelaskan mengapa mobil ini cocok dengan konteks pelanggan)
+Instruksi Rinci:
+1. Analisis Konteks & Input:
+    - Konteks Pelanggan: Pahami secara mendalam kebutuhan, prioritas, dan tantangan pelanggan dari input. Identifikasi elemen penting seperti jenis industri, muatan, rute, dan prioritas utama (misalnya: efisiensi bahan bakar, daya angkut, ketahanan mesin).
+    - Unit & Skor: Anda akan menerima informasi tiga unit Commercial Vehicle Isuzu dari input. Setiap unit memiliki score kecocokan yang merepresentasikan kesesuaian spesifikasi dengan kebutuhan pelanggan. Gunakan skor ini untuk menentukan urutan rekomendasi dan tingkat kesesuaian.
+    - Nada Bahasa: Sesuaikan nada rekomendasi Anda berdasarkan input {enthusiasm_level}.
 
-PENTING: Jawab dalam format yang TEPAT seperti ini:
-LABEL: [label 2-4 kata Anda di sini]
-ALASAN: [penjelasan detail Anda di sini]
-Jangan sertakan teks lain, format, atau karakter tambahan. Hanya label dan alasan sesuai yang ditentukan.
+2. Pembuatan Label & Alasan:
+    - Label Komersial: Buat label 2-3 kata yang sangat menarik dan menonjolkan keunggulan unik (Unique Selling Point) dari setiap unit dalam konteks perbandingannya dengan dua unit lainnya.
+        - Label harus fleksibel dan dinamis. Misalnya, jika Unit A unggul dalam irit bahan bakar dibandingkan Unit B dan C, labelnya bisa "Irit Maksimal". Namun, jika Unit A dibandingkan dengan Unit D yang lebih irit, fokus label bisa berubah ke daya tahan, misalnya "Tangguh Terpercaya".
+        - Pastikan label logis dan selaras penuh dengan konteks pelanggan. Contohnya, untuk logistik, label "Gesit di Kota" atau "Muatan Maksimal" akan lebih relevan dibanding "Lebih Bertenaga".
+        - Pastikan setiap label unik dan harus berbeda dari unit lainnya.
+    - Alasan Penjelasan: Tulis argumen penjualan yang ringkas (maksimal 70 kata) dan logis yang menjelaskan mengapa label tersebut diberikan.
+        - Fokus pada satu atau dua poin keunggulan utama unit tersebut yang paling relevan dengan kebutuhan spesifik pelanggan.
+        - Sebutkan detail spesifikasi teknis yang mendukung keunggulan tersebut (misalnya, nama mesin, torsi, dimensi kargo, dan lain-lain) dan kaitkan langsung dengan kebutuhan pelanggan.
+        - Hindari menyebutkan semua spesifikasi. Cukup sebutkan yang relevan untuk mendukung label dan alasan.
+        - Pastikan setiap alasan unik dan berbeda dari alasan unit lainnya.
+        - Gunakan bahasa yang ringkas, jelas, natural, dan mudah dipahami oleh salesman untuk disampaikan ke pelanggan.
+
+Format Output:
+Kembalikan rekomendasi untuk setiap unit secara berurutan, dimulai dari skor tertinggi ke terendah. Gunakan format yang sangat spesifik ini. Jangan sertakan teks, format, atau karakter tambahan di luar yang diminta.
+
+Unit: [Nama Unit]
+LABEL: [Label 2-3 kata Anda di sini]
+ALASAN: [Penjelasan detail Anda di sini]
+
+---
+
+Unit: [Nama Unit]
+LABEL: [Label 2-3 kata Anda di sini]
+ALASAN: [Penjelasan detail Anda di sini]
+
+---
+
+Unit: [Nama Unit]
+LABEL: [Label 2-3 kata Anda di sini]
+ALASAN: [Penjelasan detail Anda di sini]
         """
     
     def _parse_structured_response(self, response_text: str, product_name: str) -> Optional[Dict[str, Any]]:
