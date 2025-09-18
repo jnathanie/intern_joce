@@ -4,45 +4,32 @@ import os
 import json
 import pickle
 import logging
-from typing import List, Dict, Any, Optional
+from typing import List, Dict, Any, Optional, Tuple
 import numpy as np
 import faiss
 from difflib import SequenceMatcher
 from dotenv import load_dotenv
 import google.generativeai as genai
+import pandas as pd
 from pydantic import field_validator, BaseModel, Field
 
 # =============================================================================
 # PYDANTIC MODELS
 # =============================================================================
 
+class CriteriaInput(BaseModel):
+    """Input model for user criteria"""
+    segmentation: str = Field(..., description="Segmentation criteria")
+    tipe_jalan: str = Field(..., description="Road type criteria")
+    tonnase: str = Field(..., description="Tonnage criteria")
+    kubikasi_angkutan: str = Field(..., description="Transportation volume criteria")
+    aplikasi: str = Field(..., description="Application criteria")
+    
 class RecommendationInput(BaseModel):
     """Input model for a single recommendation"""
     product_name: str = Field(..., description="Name of the product")
     score: str = Field(..., description="Score as string (0-100)")
-    
-    @field_validator('score')
-    @classmethod
-    def validate_score(cls, v):
-        try:
-            score_int = int(v)
-            if not 0 <= score_int <= 100:
-                raise ValueError('Score must be between 0 and 100')
-            return v
-        except ValueError:
-            raise ValueError('Score must be a valid integer between 0 and 100')
 
-class RequestModel(BaseModel):
-    """Input request model"""
-    context: str = Field(..., description="Context for the recommendations")
-    recommendation: List[RecommendationInput] = Field(..., description="List of recommendations")
-    
-    @field_validator('recommendation')
-    @classmethod
-    def validate_recommendation_count(cls, v):
-        if len(v) != 3:
-            raise ValueError('Exactly 3 recommendations are required')
-        return v
 
 class RecommendationOutput(BaseModel):
     """Output model for a single recommendation"""
@@ -77,6 +64,59 @@ app = Flask(__name__)
 CORS(app)
 
 # =============================================================================
+# SCORING CONFIGURATION
+# =============================================================================
+
+SCORING_VALUES = {
+    # Segmentation
+    "Agriculture, Forestry & Fishing": 10,
+    "Accommodation": 10,
+    "Construction": 10,
+    "Courier": 10,
+    "Distributor & Retail": 10,
+    "Education": 10,
+    
+    # Tipe Jalan
+    "Off-road": 10,
+    "On-road Datar": 20,
+    "On-road Perbukitan": 15,
+    
+    # Tonnase
+    "<5 ton (Pickup, LCV)": 20,
+    "5 - 7 Ton (4 Ban)": 30,
+    "8 - 15 Ton (6 Ban)": 40,
+    "16 - 23 Ton": 20,
+    "23 - 34 Ton": 10,
+    ">35 Ton": 5,
+    
+    # Kubikasi Angkutan
+    "<12 M3": 10,
+    "13 - 17 M3 (4 Ban Long)": 15,
+    "18 - 21 M3 (6 Ban Standard)": 20,
+    "22 - 33 M3 (6 Ban Long)": 25,
+    "34 - 40 M3 (Medium Truck)": 25,
+    "41 - 50 M3 (Medium Truck)": 20,
+    "51 - 60 M3 (Medium Truck Long)": 20,
+    ">60 M3 (Medium Truck Long)": 15,
+    
+    # Aplikasi
+    "TRAILER": 10,
+    "NON-KUBIKASI (DUMP, MIXER, TANKI)": 5,
+    "BAK KAYU": 30,
+    "BAK BESI": 30,
+    "BLIND VAN": 1,
+    "BOX ALUMINIUM": 10,
+    "BOX BESI": 10,
+    "DUMP TRUCK": 15,
+    "FLAT BED": 5,
+    "MEDIUM BUS": 10,
+    "MICROBUS": 1,
+    "MINI MIXER": 10,
+    "PICK UP": 5,
+    "WING BOX": 30
+}
+
+# =============================================================================
 # MAIN CLASS
 # =============================================================================
 
@@ -86,13 +126,16 @@ class CarRecommendationSystem:
         self.index = None
         self.car_data = []
         self.car_metadata = []
+        self.criteria_df = None
         
         self.data_dir = "car_data"
         self.index_path = os.path.join(self.data_dir, "car_index.faiss")
         self.metadata_path = os.path.join(self.data_dir, "car_metadata.pkl")
         self.raw_data_path = os.path.join(self.data_dir, "car_database.json")
+        self.criteria_csv_path = os.path.join(self.data_dir, "unit_criteria.csv")
         
         self._load_index()
+        self._load_criteria_csv()
     
     def _load_index(self):
         if not os.path.exists(self.index_path) or not os.path.exists(self.metadata_path):
@@ -116,6 +159,75 @@ class CarRecommendationSystem:
         except Exception as e:
             logger.error(f"Error loading index: {str(e)}")
             raise
+    
+    def _load_criteria_csv(self):
+        """Load the unit criteria CSV file"""
+        try:
+            if os.path.exists(self.criteria_csv_path):
+                self.criteria_df = pd.read_csv(self.criteria_csv_path)
+                logger.info(f"Loaded criteria CSV with {len(self.criteria_df)} products")
+            else:
+                logger.warning(f"Criteria CSV not found at {self.criteria_csv_path}")
+                self.criteria_df = None
+        except Exception as e:
+            logger.error(f"Error loading criteria CSV: {str(e)}")
+            self.criteria_df = None
+            
+    def calculate_product_scores(self, user_criteria: CriteriaInput) -> List[Dict[str, Any]]:
+        """Calculate matching scores for all products based on user criteria"""
+        if self.criteria_df is None:
+            logger.error("Criteria CSV not loaded")
+            return []
+        
+        scores = []
+        
+        for _, row in self.criteria_df.iterrows():
+            product_name = row['product']
+            total_score = 0
+            
+            # Check segmentation match
+            if self._check_criteria_match(user_criteria.segmentation, str(row['segmentation'])):
+                total_score += SCORING_VALUES.get(user_criteria.segmentation, 0)
+            
+            # Check tipe_jalan match
+            if self._check_criteria_match(user_criteria.tipe_jalan, str(row['tipe_jalan'])):
+                total_score += SCORING_VALUES.get(user_criteria.tipe_jalan, 0)
+            
+            # Check tonnase match
+            if self._check_criteria_match(user_criteria.tonnase, str(row['tonnase'])):
+                total_score += SCORING_VALUES.get(user_criteria.tonnase, 0)
+            
+            # Check kubikasi_angkutan match
+            if self._check_criteria_match(user_criteria.kubikasi_angkutan, str(row['kubikasi_angkutan'])):
+                total_score += SCORING_VALUES.get(user_criteria.kubikasi_angkutan, 0)
+            
+            # Check aplikasi match
+            if self._check_criteria_match(user_criteria.aplikasi, str(row['aplikasi'])):
+                total_score += SCORING_VALUES.get(user_criteria.aplikasi, 0)
+            
+            scores.append({
+                'product_name': product_name,
+                'score': total_score
+            })
+        
+        # Sort by score descending and return top 3
+        scores.sort(key=lambda x: x['score'], reverse=True)
+        top_3 = scores[:3]
+        
+        logger.info(f"Top 3 products: {[(p['product_name'], p['score']) for p in top_3]}")
+        return top_3
+    
+    def _check_criteria_match(self, user_value: str, product_values: str) -> bool:
+        """Check if user criteria matches any of the product's criteria values"""
+        if pd.isna(product_values) or product_values.strip() == '':
+            return False
+        
+        # Clean and split the product values (they might be comma-separated with quotes)
+        product_values_clean = product_values.replace('"""', '').replace('"', '')
+        product_list = [val.strip() for val in product_values_clean.split(',')]
+        
+        # Check if user value matches any product value
+        return user_value.strip() in product_list
     
     def get_car_by_name(self, car_name: str) -> Optional[Dict[str, Any]]:
         if not self.car_data:
@@ -201,8 +313,8 @@ class CarRecommendationSystem:
             logger.error(f"Error generating embedding with Gemini: {str(e)}")
             return [0.0] * self.embedding_dimension
     
-    def list_all_cars(self) -> List[str]:
-        return [car.get('nama', car.get('name', 'Unknown')) for car in self.car_data]
+    # def list_all_cars(self) -> List[str]:
+    #     return [car.get('nama', car.get('name', 'Unknown')) for car in self.car_data]
     
     def get_structured_recommendations(self, recommendations: List[RecommendationInput], context: str) -> List[Dict[str, Any]]:
         try:
@@ -301,33 +413,42 @@ Tinggi Cargo: {car_data.get('tinggi_cargo', 'N/A')}
     
     def _create_structured_prompt(self, car_info: str, context: str, score: int, enthusiasm_level: str) -> str:
         return f"""
-Anda adalah asisten AI yang bertindak sebagai pakar rekomendasi unit Isuzu Commercial Vehicle. Tugas utama Anda adalah mengartikulasikan rekomendasi yang informatif dan persuasif berdasarkan input yang diberikan. Anda harus memahami kebutuhan spesifik pelanggan dan menerjemahkannya ke dalam argumen penjualan yang kuat dan mudah dipahami.
-Konteks Pelanggan: {context}
-Skor Rekomendasi: {score}
-Nada: Bersikap {enthusiasm_level} tentang rekomendasi ini.
+Anda adalah asisten AI yang bertindak sebagai pakar rekomendasi unit Isuzu Commercial Vehicle. Tugas utama Anda adalah mengartikulasikan rekomendasi yang informatif, persuasif, dan strategis berdasarkan input yang diberikan. Anda harus memahami kebutuhan spesifik pelanggan dan menerjemahkannya ke dalam argumen penjualan yang kuat, mudah dipahami, dan memberikan keunggulan unik (Unique Selling Point) yang berbeda untuk setiap unit.
 
-Informasi Mobil:
-{car_info}
+---
 
-Instruksi Rinci:
-1. Analisis Konteks & Input:
-    - Konteks Pelanggan: Pahami secara mendalam kebutuhan, prioritas, dan tantangan pelanggan dari input. Identifikasi elemen penting seperti jenis industri, muatan, rute, dan prioritas utama (misalnya: efisiensi bahan bakar, daya angkut, ketahanan mesin).
-    - Unit & Skor: Anda akan menerima informasi tiga unit Commercial Vehicle Isuzu dari input. Setiap unit memiliki score kecocokan yang merepresentasikan kesesuaian spesifikasi dengan kebutuhan pelanggan. Gunakan skor ini untuk menentukan urutan rekomendasi dan tingkat kesesuaian.
-    - Nada Bahasa: Sesuaikan nada rekomendasi Anda berdasarkan input {enthusiasm_level}.
+**Konteks & Informasi**
 
-2. Pembuatan Label & Alasan:
-    - Label Komersial: Buat label 2-3 kata yang sangat menarik dan menonjolkan keunggulan unik (Unique Selling Point) dari setiap unit dalam konteks perbandingannya dengan dua unit lainnya.
-        - Label harus fleksibel dan dinamis. Misalnya, jika Unit A unggul dalam irit bahan bakar dibandingkan Unit B dan C, labelnya bisa "Irit Maksimal". Namun, jika Unit A dibandingkan dengan Unit D yang lebih irit, fokus label bisa berubah ke daya tahan, misalnya "Tangguh Terpercaya".
-        - Pastikan label logis dan selaras penuh dengan konteks pelanggan. Contohnya, untuk logistik, label "Gesit di Kota" atau "Muatan Maksimal" akan lebih relevan dibanding "Lebih Bertenaga".
-        - Pastikan setiap label unik dan harus berbeda dari unit lainnya.
-    - Alasan Penjelasan: Tulis argumen penjualan yang ringkas (maksimal 70 kata) dan logis yang menjelaskan mengapa label tersebut diberikan.
-        - Fokus pada satu atau dua poin keunggulan utama unit tersebut yang paling relevan dengan kebutuhan spesifik pelanggan.
-        - Sebutkan detail spesifikasi teknis yang mendukung keunggulan tersebut (misalnya, nama mesin, torsi, dimensi kargo, dan lain-lain) dan kaitkan langsung dengan kebutuhan pelanggan.
-        - Hindari menyebutkan semua spesifikasi. Cukup sebutkan yang relevan untuk mendukung label dan alasan.
-        - Pastikan setiap alasan unik dan berbeda dari alasan unit lainnya.
-        - Gunakan bahasa yang ringkas, jelas, natural, dan mudah dipahami oleh salesman untuk disampaikan ke pelanggan.
+* **Konteks Pelanggan:** {context}
+* **Skor Rekomendasi:** {score}
+* **Nada:** Bersikap {enthusiasm_level} tentang rekomendasi ini.
+* **Informasi Mobil:** {car_info}
 
-Format Output:
+---
+
+**Instruksi Rinci**
+
+1.  **Analisis & Pemahaman:**
+    * **Pahami Kebutuhan:** Pahami secara mendalam kebutuhan calon pelanggan berdasarkan jenis industri dan konteks yang diberikan.
+    * **Prioritaskan:** Gunakan score kecocokan untuk menentukan urutan rekomendasi yang paling sesuai.
+
+2.  **Strategi Diferensiasi & Penjualan:**
+    * **Cari Keunggulan Unik:** Identifikasi keunggulan utama dari setiap unit. Jika dua unit memiliki keunggulan yang mirip, wajib alihkan fokus ke Unique Selling Point (USP) lain yang membedakan mereka.
+    * **Pilihan Diferensiasi:** Pilih USP berdasarkan data teknis yang tersedia dan kaitkan dengan manfaat pelanggan. Pilihan bisa berupa efisiensi bahan bakar, kemampuan manuver di ruang sempit, performa mesin di medan berat, atau ketahanan untuk jarak jauh.
+
+3.  **Pembuatan Label & Alasan:**
+    * **Label Komersial (Maks. 3 kata):** Buat label yang menarik, mudah diingat, dan langsung menonjolkan USP utama unit tersebut.
+        * **Kewajiban Mutlak:** Setiap label harus unik dan berbeda secara tulisan dan makna. Jangan pernah mengulang label atau manfaat yang sama.
+    * **Alasan Penjelasan (Maks. 70 kata):** Buat argumen penjualan yang ringkas, logis, dan persuasif.
+        * **Fokus pada Manfaat Unik:** Jelaskan satu atau dua poin utama yang paling relevan. Pastikan manfaat ini unik dan berbeda dari unit lain.
+        * **Wajib Hubungkan Spesifikasi dengan Manfaat Pelanggan:** Kaitkan spesifikasi teknis (seperti tipe mesin, torsi, atau dimensi) dengan manfaat nyata yang dirasakan pelanggan. **Jangan hanya menyebutkan spesifikasi tanpa penjelasan manfaatnya**. Contoh: "Mesin 4HK1-TCC bertenaga memastikan pengiriman paket ke pelosok lancar tanpa kendala tanjakan."
+        * **Hindari Pengulangan Manfaat:** Jika satu unit dijelaskan unggul karena "daya angkutnya", unit lain harus dijelaskan dengan manfaat yang berbeda, misalnya "irit bahan bakar" atau "gesit di jalan sempit".
+        * **Gunakan Bahasa Sales:** Tulis dengan bahasa yang ringkas, jelas, dan natural agar mudah disampaikan salesman ke calon pembeli.
+
+---
+
+**Format Output:**
+
 Kembalikan rekomendasi untuk setiap unit secara berurutan, dimulai dari skor tertinggi ke terendah. Gunakan format yang sangat spesifik ini. Jangan sertakan teks, format, atau karakter tambahan di luar yang diminta.
 
 Unit: [Nama Unit]
@@ -377,6 +498,42 @@ ALASAN: [Penjelasan detail Anda di sini]
                 "label": "Great Choice",
                 "reason": "This vehicle offers excellent value and performance suitable for your needs."
             }
+            
+    def process_criteria_to_recommendations(self, user_criteria: CriteriaInput) -> List[Dict[str, Any]]:
+        """Main method that processes user criteria and returns AI-generated recommendations"""
+        try:
+            # Step 1: Calculate scores for all products
+            top_products = self.calculate_product_scores(user_criteria)
+            
+            if not top_products:
+                logger.warning("No matching products found")
+                return []
+            
+            # Step 2: Convert to RecommendationInput format
+            recommendations = []
+            for product in top_products:
+                # Normalize score to 0-100 scale (you may want to adjust this logic)
+                normalized_score = min(100, int((product['score'] / 100) * 100))  # Adjust divisor based on max possible score
+                recommendations.append(RecommendationInput(
+                    product_name=product['product_name'],
+                    score=str(normalized_score)
+                ))
+            
+            # Step 3: Generate context based on user criteria
+            context = self._generate_context_from_criteria(user_criteria)
+            
+            # Step 4: Get structured recommendations from AI
+            structured_recommendations = self.get_structured_recommendations(recommendations, context)
+            
+            return structured_recommendations
+            
+        except Exception as e:
+            logger.error(f"Error processing criteria to recommendations: {str(e)}")
+            raise
+
+    def _generate_context_from_criteria(self, user_criteria: CriteriaInput) -> str:
+        """Generate context sentence based on segmentation"""
+        return f"Pembeli memiliki bisnis di bidang {user_criteria.segmentation}"
 
 # =============================================================================
 # INITIALIZE SYSTEM
@@ -405,20 +562,19 @@ def get_recommendations():
     
     Expected JSON format:
     {
-        "context": "The user is working in retail",
-        "recommendation": [
-            {"product_name": "Camry", "score": "90"},
-            {"product_name": "Honda Accord", "score": "70"},
-            {"product_name": "Tesla 3", "score": "60"}
-        ]
+        "segmentation": "Agriculture, Forestry & Fishing",
+        "tipe_jalan": "On-road Datar",
+        "tonnase": "<5 ton (Pickup, LCV)",
+        "kubikasi_angkutan": "<12 M3",
+        "aplikasi": "BOX BESI"
     }
     
     Returns:
     {
         "recommendations": [
-            {"product_name": "Camry", "label": "Most affordable", "reason": "..."},
-            {"product_name": "Honda Accord", "label": "Most Reliable", "reason": "..."},
-            {"product_name": "Tesla 3", "label": "Most Family-Friendly", "reason": "..."}
+            {"product_name": "D-MAX SC", "label": "Most Versatile", "reason": "..."},
+            {"product_name": "TRAGA PICK UP", "label": "Most Efficient", "reason": "..."},
+            {"product_name": "ELF NLR", "label": "Best Capacity", "reason": "..."}
         ]
     }
     """
@@ -432,27 +588,20 @@ def get_recommendations():
         data = request.get_json()
         
         try:
-            request_model = RequestModel(**data)
+            criteria_input = CriteriaInput(**data)
         except Exception as e:
             return jsonify({"error": f"Invalid input format: {str(e)}"}), 400
         
-        context = request_model.context
-        recommendations = request_model.recommendation
-        
-        structured_recommendations = recommendation_system.get_structured_recommendations(
-            recommendations, context
-        )
-        
+        structured_recommendations = recommendation_system.process_criteria_to_recommendations(criteria_input)
         if not structured_recommendations:
-            return jsonify({"error": "No car data found for any of the provided recommendations"}), 404
-        
+            return jsonify({"error": "No matching products found for the given criteria"}), 404
         try:
             response_model = ResponseModel(recommendations=structured_recommendations)
             return jsonify(response_model.dict())
         except Exception as e:
             logger.error(f"Output validation failed: {str(e)}")
             return jsonify({"error": "Internal server error - invalid output format"}), 500
-    
+        
     except Exception as e:
         logger.error(f"Error processing recommendation request: {str(e)}")
         return jsonify({"error": "Internal server error"}), 500
@@ -471,4 +620,3 @@ if __name__ == '__main__':
         host='0.0.0.0',
         port=5000,
     )
-

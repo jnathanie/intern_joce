@@ -1,0 +1,6 @@
+product,segmentation,tipe_jalan,tonnase,kubikasi_angkutan,aplikasi
+D-MAX SC,"Agriculture, Forestry & Fishing,Accommodation,Construction,Distributor & Retail,Education","Off-road,On-road Datar,On-road Perbukitan","<5 ton (Pickup, LCV)",<12 M3,"BOX ALUMINIUM,BOX BESI"
+TRAGA PICK UP,"Agriculture, Forestry & Fishing,Distributor & Retail,Education","On-road Datar,On-road Perbukitan","<5 ton (Pickup, LCV)",<12 M3,BOX BESI
+ELF NLR,"Agriculture, Forestry & Fishing,Distributor & Retail,Education","On-road Datar,On-road Perbukitan",5 - 7 Ton (4 Ban),<12 M3,"BAK KAYU,DUMP TRUCK"
+GIGA FRR Q ,"Courier,Education",On-road Datar,8 - 15 Ton (6 Ban),34 - 40 M3 (Medium Truck),"BAK BESI,DUMP TRUCK"
+GIGA FVR P ,Courier,"On-road Datar,On-road Perbukitan",16 - 23 Ton,41 - 50 M3 (Medium Truck),"BAK KAYU,BAK BESI,DUMP TRUCK,PICK UP"

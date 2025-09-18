@@ -30,6 +30,59 @@ class Colors:
     BOLD = '\033[1m'
     UNDERLINE = '\033[4m'
 
+# Available options based on app.py scoring values
+SEGMENTATION_OPTIONS = [
+    "Agriculture, Forestry & Fishing",
+    "Accommodation", 
+    "Construction",
+    "Courier",
+    "Distributor & Retail",
+    "Education"
+]
+
+TIPE_JALAN_OPTIONS = [
+    "Off-road",
+    "On-road Datar", 
+    "On-road Perbukitan"
+]
+
+TONNASE_OPTIONS = [
+    "<5 ton (Pickup, LCV)",
+    "5 - 7 Ton (4 Ban)",
+    "8 - 15 Ton (6 Ban)",
+    "16 - 23 Ton",
+    "23 - 34 Ton", 
+    ">35 Ton"
+]
+
+KUBIKASI_OPTIONS = [
+    "<12 M3",
+    "13 - 17 M3 (4 Ban Long)",
+    "18 - 21 M3 (6 Ban Standard)",
+    "22 - 33 M3 (6 Ban Long)",
+    "34 - 40 M3 (Medium Truck)",
+    "41 - 50 M3 (Medium Truck)",
+    "51 - 60 M3 (Medium Truck Long)",
+    ">60 M3 (Medium Truck Long)"
+]
+
+APLIKASI_OPTIONS = [
+    "TRAILER",
+    "NON-KUBIKASI (DUMP, MIXER, TANKI)",
+    "BAK KAYU",
+    "BAK BESI", 
+    "BLIND VAN",
+    "BOX ALUMINIUM",
+    "BOX BESI",
+    "DUMP TRUCK",
+    "FLAT BED",
+    "MEDIUM BUS",
+    "MICROBUS",
+    "MINI MIXER",
+    "PICK UP",
+    "WING BOX"
+]
+
 # =============================================================================
 # API CLIENT FUNCTIONS
 # =============================================================================
@@ -59,75 +112,13 @@ def check_server_health() -> bool:
         print(f"{Colors.FAIL}❌ Error checking server: {str(e)}{Colors.ENDC}")
         return False
 
-# We don't need these functions anymore for the simplified version
-def get_all_cars() -> List[str]:
-    """Get list of all available cars - kept for potential future use"""
+def get_recommendations(criteria: Dict[str, str]) -> Optional[Dict]:
+    """Get recommendations based on user criteria"""
     try:
-        response = requests.get(f"{API_BASE_URL}/cars", timeout=10)
-        if response.status_code == 200:
-            data = response.json()
-            return data.get('cars', [])
-        else:
-            print(f"{Colors.FAIL}❌ Error getting car list: {response.status_code}{Colors.ENDC}")
-            return []
-    except Exception as e:
-        print(f"{Colors.FAIL}❌ Error: {str(e)}{Colors.ENDC}")
-        return []
-
-def search_cars(query: str, limit: int = 5) -> List[Dict]:
-    """Search for cars using AI similarity - kept for potential future use"""
-    try:
-        payload = {
-            "query": query,
-            "limit": limit
-        }
-        response = requests.post(
-            f"{API_BASE_URL}/cars/search", 
-            json=payload,
-            headers={'Content-Type': 'application/json'},
-            timeout=30
-        )
-        
-        if response.status_code == 200:
-            data = response.json()
-            return data.get('results', [])
-        else:
-            print(f"{Colors.FAIL}❌ Search error: {response.status_code}{Colors.ENDC}")
-            try:
-                error_data = response.json()
-                print(f"{Colors.FAIL}Error details: {error_data.get('error', 'Unknown error')}{Colors.ENDC}")
-            except:
-                print(f"{Colors.FAIL}Response: {response.text}{Colors.ENDC}")
-            return []
-    except Exception as e:
-        print(f"{Colors.FAIL}❌ Search error: {str(e)}{Colors.ENDC}")
-        return []
-
-def get_recommendations(products: List[Dict], context: str) -> Optional[Dict]:
-    """Get detailed recommendations for selected cars with individual scores"""
-    try:
-        # Validate input - API requires exactly 3 recommendations
-        if len(products) != 3:
-            print(f"{Colors.WARNING}⚠️  API requires exactly 3 products. You have {len(products)}.{Colors.ENDC}")
-            return None
-        
-        # Create recommendations list with product_name and score for each product
-        recommendations = []
-        for product in products:
-            recommendations.append({
-                "product_name": product['name'],
-                "score": str(product['score'])  # Convert to string as per API requirement
-            })
-        
-        payload = {
-            "context": context,
-            "recommendation": recommendations
-        }
-        
-        print(f"{Colors.WARNING}🔄 Sending request to AI system...{Colors.ENDC}")
+        print(f"{Colors.WARNING}🔄 Sending criteria to AI system for analysis...{Colors.ENDC}")
         response = requests.post(
             f"{API_BASE_URL}/recommend",
-            json=payload,
+            json=criteria,
             headers={'Content-Type': 'application/json'},
             timeout=60  # Longer timeout for AI generation
         )
@@ -160,64 +151,78 @@ def print_header():
 def print_menu():
     """Print main menu options"""
     print(f"\n{Colors.OKBLUE}📋 MAIN MENU:{Colors.ENDC}")
-    print(f"{Colors.OKCYAN}1.{Colors.ENDC} Get recommendations")
+    print(f"{Colors.OKCYAN}1.{Colors.ENDC} Get vehicle recommendations")
     print(f"{Colors.OKCYAN}2.{Colors.ENDC} Exit")
 
-def get_product_input() -> Dict:
-    """Get a single product name and score from user"""
-    # Get Product Name
+def select_from_options(prompt: str, options: List[str]) -> str:
+    """Generic function to select from a list of options"""
     while True:
-        product_name = input(f"{Colors.OKCYAN}Enter Product Name: {Colors.ENDC}").strip()
-        if product_name:
-            break
-        print(f"{Colors.WARNING}⚠️  Please enter a product name{Colors.ENDC}")
-    
-    # Get Score
-    while True:
+        print(f"\n{Colors.OKBLUE}{prompt}{Colors.ENDC}")
+        for i, option in enumerate(options, 1):
+            print(f"{Colors.OKCYAN}{i:2d}.{Colors.ENDC} {option}")
+        
         try:
-            score = int(input(f"{Colors.OKCYAN}Enter Score (0-100): {Colors.ENDC}"))
-            if 0 <= score <= 100:
-                break
-            print(f"{Colors.WARNING}⚠️  Score must be between 0 and 100{Colors.ENDC}")
+            choice = int(input(f"\n{Colors.OKCYAN}Select option (1-{len(options)}): {Colors.ENDC}"))
+            if 1 <= choice <= len(options):
+                selected = options[choice - 1]
+                print(f"{Colors.OKGREEN}✅ Selected: {selected}{Colors.ENDC}")
+                return selected
+            else:
+                print(f"{Colors.WARNING}⚠️  Please select a number between 1 and {len(options)}{Colors.ENDC}")
         except ValueError:
-            print(f"{Colors.WARNING}⚠️  Please enter a valid number for score{Colors.ENDC}")
-    
-    return {"name": product_name, "score": score}
+            print(f"{Colors.WARNING}⚠️  Please enter a valid number{Colors.ENDC}")
 
-def display_current_products(products: List[Dict]):
-    """Display the current list of products with validation status"""
-    if not products:
-        print(f"{Colors.WARNING}📝 No products added yet{Colors.ENDC}")
-        return
+def get_criteria_input() -> Dict[str, str]:
+    """Get all 5 criteria from user"""
+    print(f"\n{Colors.HEADER}🎯 VEHICLE SELECTION CRITERIA{Colors.ENDC}")
+    print(f"{Colors.OKBLUE}Please select your requirements for each criterion:{Colors.ENDC}")
     
-    print(f"\n{Colors.OKBLUE}📝 Current Products ({len(products)}/3 required):{Colors.ENDC}")
-    for i, product in enumerate(products, 1):
-        print(f"{Colors.OKCYAN}{i}.{Colors.ENDC} {product['name']} (Score: {product['score']}/100)")
+    criteria = {}
     
-    if len(products) < 3:
-        print(f"{Colors.WARNING}⚠️  Need {3 - len(products)} more product(s) for recommendations{Colors.ENDC}")
-    elif len(products) == 3:
-        print(f"{Colors.OKGREEN}✅ Ready for recommendations!{Colors.ENDC}")
-    else:
-        print(f"{Colors.WARNING}⚠️  Too many products! API accepts exactly 3.{Colors.ENDC}")
+    # Get Segmentation
+    criteria["segmentation"] = select_from_options(
+        "🏢 INDUSTRY SEGMENTATION - What industry will this vehicle serve?",
+        SEGMENTATION_OPTIONS
+    )
+    
+    # Get Tipe Jalan
+    criteria["tipe_jalan"] = select_from_options(
+        "🛣️  ROAD TYPE - What type of roads will this vehicle primarily use?",
+        TIPE_JALAN_OPTIONS
+    )
+    
+    # Get Tonnase
+    criteria["tonnase"] = select_from_options(
+        "⚖️  WEIGHT CAPACITY - What tonnage capacity do you need?",
+        TONNASE_OPTIONS
+    )
+    
+    # Get Kubikasi Angkutan
+    criteria["kubikasi_angkutan"] = select_from_options(
+        "📦 VOLUME CAPACITY - What volume capacity do you need?",
+        KUBIKASI_OPTIONS
+    )
+    
+    # Get Aplikasi
+    criteria["aplikasi"] = select_from_options(
+        "🔧 APPLICATION TYPE - What will be the primary application?",
+        APLIKASI_OPTIONS
+    )
+    
+    return criteria
 
-def get_context_input() -> str:
-    """Get context from user"""
-    print(f"\n{Colors.OKBLUE}📝 CONTEXT SETUP{Colors.ENDC}")
-    print(f"{Colors.OKCYAN}Please provide context for the recommendations.{Colors.ENDC}")
-    print(f"{Colors.WARNING}Examples:{Colors.ENDC}")
-    print(f"  • 'The user is working in retail'")
-    print(f"  • 'Customer is a young professional'")
-    print(f"  • 'Family with two kids looking for safety'")
-    print(f"  • 'Budget-conscious first-time buyer'")
-    
-    while True:
-        context = input(f"\n{Colors.OKCYAN}Enter context: {Colors.ENDC}").strip()
-        if context:
-            return context
-        print(f"{Colors.WARNING}⚠️  Please enter a context{Colors.ENDC}")
+def display_criteria_summary(criteria: Dict[str, str]):
+    """Display a summary of selected criteria"""
+    print(f"\n{Colors.HEADER}📋 CRITERIA SUMMARY{Colors.ENDC}")
+    print(f"{Colors.HEADER}{'─'*50}{Colors.ENDC}")
+    print(f"{Colors.BOLD}🏢 Industry:{Colors.ENDC} {Colors.OKCYAN}{criteria['segmentation']}{Colors.ENDC}")
+    print(f"{Colors.BOLD}🛣️  Road Type:{Colors.ENDC} {Colors.OKCYAN}{criteria['tipe_jalan']}{Colors.ENDC}")
+    print(f"{Colors.BOLD}⚖️  Tonnage:{Colors.ENDC} {Colors.OKCYAN}{criteria['tonnase']}{Colors.ENDC}")
+    print(f"{Colors.BOLD}📦 Volume:{Colors.ENDC} {Colors.OKCYAN}{criteria['kubikasi_angkutan']}{Colors.ENDC}")
+    print(f"{Colors.BOLD}🔧 Application:{Colors.ENDC} {Colors.OKCYAN}{criteria['aplikasi']}{Colors.ENDC}")
+    print(f"{Colors.HEADER}{'─'*50}{Colors.ENDC}")
 
-def display_structured_recommendations(response_data: Dict, products: List[Dict], context: str):
+def display_structured_recommendations(response_data: Dict):
     """Display the structured JSON response in a nice format"""
     if not response_data or 'recommendations' not in response_data:
         print(f"{Colors.FAIL}❌ Invalid response format{Colors.ENDC}")
@@ -226,21 +231,18 @@ def display_structured_recommendations(response_data: Dict, products: List[Dict]
     recommendations = response_data['recommendations']
     
     print(f"\n{Colors.OKGREEN}✅ AI RECOMMENDATIONS GENERATED{Colors.ENDC}")
-    print(f"{Colors.OKBLUE}Context: '{context}'{Colors.ENDC}")
+    print(f"{Colors.HEADER}{'='*70}{Colors.ENDC}")
+    print(f"{Colors.OKBLUE}🎯 System found {len(recommendations)} matching vehicles for your criteria{Colors.ENDC}")
     print(f"{Colors.HEADER}{'='*70}{Colors.ENDC}")
     
     # Display each recommendation
     for i, rec in enumerate(recommendations, 1):
-        # Find the corresponding score from products list
-        product_score = next((p['score'] for p in products if p['name'] == rec.get('product_name', 'Unknown')), 'N/A')
-        
         print(f"\n{Colors.HEADER}🚗 RECOMMENDATION #{i}")
         print(f"{'─'*60}{Colors.ENDC}")
-        print(f"{Colors.BOLD}Product:{Colors.ENDC} {Colors.OKBLUE}{rec.get('product_name', 'Unknown')}{Colors.ENDC}")
-        print(f"{Colors.BOLD}Score:{Colors.ENDC} {Colors.OKCYAN}{product_score}/100{Colors.ENDC}")
+        print(f"{Colors.BOLD}Vehicle:{Colors.ENDC} {Colors.OKBLUE}{rec.get('product_name', 'Unknown')}{Colors.ENDC}")
         print(f"{Colors.BOLD}Label:{Colors.ENDC} {Colors.OKGREEN}💡 {rec.get('label', 'Great Choice')}{Colors.ENDC}")
         
-        print(f"\n{Colors.BOLD}📝 Detailed Recommendation:{Colors.ENDC}")
+        print(f"\n{Colors.BOLD}📝 Why This Vehicle Suits Your Needs:{Colors.ENDC}")
         reason = rec.get('reason', 'This vehicle offers excellent value and performance.')
         # Word wrap the reason for better readability
         words = reason.split()
@@ -268,7 +270,7 @@ def display_structured_recommendations(response_data: Dict, products: List[Dict]
             print(f"\n{Colors.HEADER}{'─'*60}{Colors.ENDC}")
     
     print(f"\n{Colors.HEADER}{'='*70}{Colors.ENDC}")
-    print(f"{Colors.OKGREEN}🎉 All recommendations generated successfully!{Colors.ENDC}")
+    print(f"{Colors.OKGREEN}🎉 Analysis complete! These are your top vehicle matches.{Colors.ENDC}")
 
 def display_raw_json(response_data: Dict):
     """Display the raw JSON response for debugging"""
@@ -276,118 +278,51 @@ def display_raw_json(response_data: Dict):
     print(f"{Colors.OKCYAN}{json.dumps(response_data, indent=2)}{Colors.ENDC}")
 
 def handle_get_recommendation():
-    """Handle getting recommendation with context and multiple products"""
-    print(f"\n{Colors.OKBLUE}🎯 GET RECOMMENDATIONS{Colors.ENDC}")
+    """Handle getting recommendation with criteria input"""
+    print(f"\n{Colors.OKBLUE}🎯 GET VEHICLE RECOMMENDATIONS{Colors.ENDC}")
+    print(f"{Colors.OKCYAN}We'll help you find the perfect vehicle by analyzing your specific needs.{Colors.ENDC}")
     
-    # First, get context from user
-    context = get_context_input()
-    print(f"{Colors.OKGREEN}✅ Context set: '{context}'{Colors.ENDC}")
+    # Get criteria from user
+    criteria = get_criteria_input()
     
-    products = []
+    # Display summary
+    display_criteria_summary(criteria)
     
-    while True:
-        print(f"\n{Colors.HEADER}{'─'*40}")
-        print(f"Adding Product #{len(products) + 1}")
-        print(f"{'─'*40}{Colors.ENDC}")
-        
-        # Get product input
-        product = get_product_input()
-        products.append(product)
-        
-        # Display current products
-        display_current_products(products)
-        
-        # Ask if user wants to add more products
-        print(f"\n{Colors.OKBLUE}Options:{Colors.ENDC}")
-        if len(products) < 3:
-            print(f"{Colors.OKCYAN}1.{Colors.ENDC} Add another product")
-        else:
-            print(f"{Colors.WARNING}1.{Colors.ENDC} Add another product (max 3 reached)")
-        
-        if len(products) == 3:
-            print(f"{Colors.OKGREEN}2.{Colors.ENDC} Get AI recommendations (ready!)")
-        else:
-            print(f"{Colors.WARNING}2.{Colors.ENDC} Get AI recommendations (need {3-len(products)} more)")
-        
-        print(f"{Colors.OKCYAN}3.{Colors.ENDC} Remove a product")
-        print(f"{Colors.OKCYAN}4.{Colors.ENDC} Change context")
-        print(f"{Colors.OKCYAN}5.{Colors.ENDC} Clear all and start over")
-        print(f"{Colors.OKCYAN}6.{Colors.ENDC} Cancel and return to main menu")
-        
-        while True:
-            choice = input(f"{Colors.OKCYAN}Select option (1-6): {Colors.ENDC}").strip()
-            
-            if choice == '1':
-                # Continue loop to add another product
-                if len(products) >= 3:
-                    print(f"{Colors.WARNING}⚠️  Maximum 3 products allowed for API compatibility{Colors.ENDC}")
-                    continue
-                break
-            elif choice == '2':
-                # Get recommendations
-                if len(products) != 3:
-                    print(f"{Colors.WARNING}⚠️  Need exactly 3 products for recommendations. You have {len(products)}.{Colors.ENDC}")
-                    continue
-                
-                print(f"\n{Colors.WARNING}🔄 Generating AI recommendations for {len(products)} products...{Colors.ENDC}")
-                print(f"{Colors.OKBLUE}Context: '{context}'{Colors.ENDC}")
-                
-                response_data = get_recommendations(products, context)
-                
-                if not response_data:
-                    print(f"{Colors.FAIL}❌ Could not generate recommendations{Colors.ENDC}")
-                    return
-                
-                # Display structured recommendations
-                display_structured_recommendations(response_data, products, context)
-                
-                # Ask if user wants to see raw JSON
-                show_json = input(f"\n{Colors.OKCYAN}Show raw JSON response? (y/n): {Colors.ENDC}").strip().lower()
-                if show_json in ['y', 'yes']:
-                    display_raw_json(response_data)
-                
-                return
-            elif choice == '3':
-                # Remove a product
-                if len(products) <= 1:
-                    print(f"{Colors.WARNING}⚠️  Cannot remove the only product. Use option 5 to start over.{Colors.ENDC}")
-                    continue
-                
-                display_current_products(products)
-                try:
-                    remove_idx = int(input(f"{Colors.OKCYAN}Enter number of product to remove: {Colors.ENDC}")) - 1
-                    if 0 <= remove_idx < len(products):
-                        removed = products.pop(remove_idx)
-                        print(f"{Colors.OKGREEN}✅ Removed: {removed['name']}{Colors.ENDC}")
-                    else:
-                        print(f"{Colors.WARNING}⚠️  Invalid product number{Colors.ENDC}")
-                except ValueError:
-                    print(f"{Colors.WARNING}⚠️  Please enter a valid number{Colors.ENDC}")
-                break
-            elif choice == '4':
-                # Change context
-                context = get_context_input()
-                print(f"{Colors.OKGREEN}✅ Context updated: '{context}'{Colors.ENDC}")
-                break
-            elif choice == '5':
-                # Clear all and start over
-                products = []
-                context = get_context_input()
-                print(f"{Colors.OKGREEN}✅ Cleared all products and reset context{Colors.ENDC}")
-                break
-            elif choice == '6':
-                # Cancel
-                print(f"{Colors.WARNING}📝 Cancelled. Returning to main menu.{Colors.ENDC}")
-                return
-            else:
-                print(f"{Colors.WARNING}⚠️  Please select a valid option (1-6){Colors.ENDC}")
+    # Confirm with user
+    confirm = input(f"\n{Colors.OKCYAN}Proceed with these criteria? (y/n): {Colors.ENDC}").strip().lower()
+    if confirm not in ['y', 'yes']:
+        print(f"{Colors.WARNING}📝 Cancelled. Returning to main menu.{Colors.ENDC}")
+        return
+    
+    print(f"\n{Colors.WARNING}🔄 Analyzing your criteria and finding matching vehicles...{Colors.ENDC}")
+    print(f"{Colors.OKCYAN}This may take a moment as we:{Colors.ENDC}")
+    print(f"{Colors.OKCYAN}  1. Match your criteria against our vehicle database{Colors.ENDC}")
+    print(f"{Colors.OKCYAN}  2. Calculate compatibility scores{Colors.ENDC}")
+    print(f"{Colors.OKCYAN}  3. Select the top 3 matching vehicles{Colors.ENDC}")
+    print(f"{Colors.OKCYAN}  4. Generate AI-powered recommendations{Colors.ENDC}")
+    
+    response_data = get_recommendations(criteria)
+    
+    if not response_data:
+        print(f"{Colors.FAIL}❌ Could not generate recommendations{Colors.ENDC}")
+        return
+    
+    # Display structured recommendations
+    display_structured_recommendations(response_data)
+    
+    # Ask if user wants to see raw JSON
+    show_json = input(f"\n{Colors.OKCYAN}Show technical details (raw JSON)? (y/n): {Colors.ENDC}").strip().lower()
+    if show_json in ['y', 'yes']:
+        display_raw_json(response_data)
 
 def main():
     """Main application loop"""
     print_header()
+    print(f"{Colors.OKCYAN}Welcome! This system will analyze your specific vehicle requirements")
+    print(f"and recommend the top 3 matching Isuzu Commercial Vehicles.{Colors.ENDC}")
     
     # Check server connection
-    print(f"{Colors.WARNING}🔄 Checking server connection...{Colors.ENDC}")
+    print(f"\n{Colors.WARNING}🔄 Checking server connection...{Colors.ENDC}")
     if not check_server_health():
         print(f"\n{Colors.FAIL}Cannot continue without server connection. Exiting.{Colors.ENDC}")
         sys.exit(1)
