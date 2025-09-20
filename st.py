@@ -143,14 +143,45 @@ def display_recommendations(recommendations: List[Dict[str, Any]], raw_response:
     st.markdown("## 🚗 Recommendations")
     
     for i, rec in enumerate(recommendations, 1):
+        product_name = rec.get('product_name', 'Unknown')
+        label = rec.get('label', 'No label')
+        reason = rec.get('reason', [])
+        
+        # Handle reason display - check if it's already a list or needs parsing
+        if isinstance(reason, list):
+            reason_list = reason
+        elif isinstance(reason, str):
+            # Try to parse string as list, otherwise treat as single item
+            try:
+                # First try to evaluate as Python list
+                import ast
+                reason_list = ast.literal_eval(reason)
+                if not isinstance(reason_list, list):
+                    reason_list = [str(reason_list)]
+            except (ValueError, SyntaxError):
+                # If parsing fails, treat as single string
+                reason_list = [reason]
+        else:
+            reason_list = ["No reason provided"]
+        
+        # Build the reason points HTML
+        reason_points_html = ""
+        if reason_list:
+            reason_points_html = "<div style='margin-top: 10px;'><strong style='color: #333;'>Berikut beberapa alasan mengapa kendaraan ini cocok untuk Anda:</strong><br/>"
+            for point in reason_list:
+                if point and point.strip():  # Only display non-empty points
+                    reason_points_html += f"<div style='margin: 8px 0; line-height: 1.6; color: #333;'>• {point}</div>"
+            reason_points_html += "</div>"
+        
+        # Display everything in one card
         st.markdown(f"""
         <div class="recommendation-card">
-            <div class="product-name">{i}. {rec.get('product_name', 'Unknown')}</div>
-            <div class="label">{rec.get('label', 'No label')}</div>
-            <div class="reason">{rec.get('reason', 'No reason provided')}</div>
+            <div class="product-name">{i}. {product_name}</div>
+            <div class="label">{label}</div>
+            {reason_points_html}
         </div>
         """, unsafe_allow_html=True)
-    
+            
     # Add expandable section for raw JSON response
     if raw_response:
         with st.expander("📄 Raw JSON Response"):

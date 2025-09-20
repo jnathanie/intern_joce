@@ -35,7 +35,7 @@ class RecommendationOutput(BaseModel):
     """Output model for a single recommendation"""
     product_name: str = Field(..., description="Name of the product")
     label: str = Field(..., description="Short label for the recommendation")
-    reason: str = Field(..., description="Detailed reason for the recommendation")
+    reason: List[str] = Field(..., description="Detailed reasons for the recommendation as a list of points")
 
 class ResponseModel(BaseModel):
     """Output response model"""
@@ -413,82 +413,112 @@ Tinggi Cargo: {car_data.get('tinggi_cargo', 'N/A')}
     
     def _create_structured_prompt(self, car_info: str, context: str, score: int, enthusiasm_level: str) -> str:
         return f"""
-Anda adalah asisten AI yang bertindak sebagai pakar rekomendasi unit Isuzu Commercial Vehicle. Tugas utama Anda adalah mengartikulasikan rekomendasi yang informatif, persuasif, dan strategis berdasarkan input yang diberikan. Anda harus memahami kebutuhan spesifik pelanggan dan menerjemahkannya ke dalam argumen penjualan yang kuat, mudah dipahami, dan memberikan keunggulan unik (Unique Selling Point) yang berbeda untuk setiap unit.
+Anda adalah seorang ahli penjualan dan pakar teknis Isuzu Commercial Vehicle. Tugas Anda adalah membantu salesman menjelaskan rekomendasi produk kepada calon pembeli secara ringkas dan persuasif. Anda akan menerima data profil kebutuhan pelanggan dan 3 unit kendaraan komersial yang paling cocok, lengkap dengan skor kecocokan.
+**Tujuan:**
+Buat label dan penjelasan dalam bahasa Indonesia yang menyoroti keunggulan unik (Unique Selling Point) dari setiap unit. Penjelasan harus berisi alasan spesifik dan konkret mengapa sebuah fitur teknis menguntungkan pelanggan.
 
----
+Konteks Pelanggan: 
+{context}
+Skor Rekomendasi: {score}
 
-**Konteks & Informasi**
+Informasi Mobil:
+{car_info}
 
-* **Konteks Pelanggan:** {context}
-* **Skor Rekomendasi:** {score}
-* **Nada:** Bersikap {enthusiasm_level} tentang rekomendasi ini.
-* **Informasi Mobil:** {car_info}
 
----
+Analisis Konteks & Input:
+- Profil Pelanggan: Pahami secara mendalam semua aspek kebutuhan pelanggan dari profil yang diberikan. Identifikasi elemen penting seperti segmentasi bisnis, kondisi jalan operasional, kapasitas muatan yang dibutuhkan, volume angkutan, dan jenis aplikasi karoseri.
+- Urutan Rekomendasi: Gunakan score kecocokan untuk menentukan urutan rekomendasi dari yang paling sesuai.
 
-**Instruksi Rinci**
-
-1.  **Analisis & Pemahaman:**
-    * **Pahami Kebutuhan:** Pahami secara mendalam kebutuhan calon pelanggan berdasarkan jenis industri dan konteks yang diberikan.
-    * **Prioritaskan:** Gunakan score kecocokan untuk menentukan urutan rekomendasi yang paling sesuai.
-
-2.  **Strategi Diferensiasi & Penjualan:**
-    * **Cari Keunggulan Unik:** Identifikasi keunggulan utama dari setiap unit. Jika dua unit memiliki keunggulan yang mirip, wajib alihkan fokus ke Unique Selling Point (USP) lain yang membedakan mereka.
-    * **Pilihan Diferensiasi:** Pilih USP berdasarkan data teknis yang tersedia dan kaitkan dengan manfaat pelanggan. Pilihan bisa berupa efisiensi bahan bakar, kemampuan manuver di ruang sempit, performa mesin di medan berat, atau ketahanan untuk jarak jauh.
-
-3.  **Pembuatan Label & Alasan:**
-    * **Label Komersial (Maks. 3 kata):** Buat label yang menarik, mudah diingat, dan langsung menonjolkan USP utama unit tersebut.
-        * **Kewajiban Mutlak:** Setiap label harus unik dan berbeda secara tulisan dan makna. Jangan pernah mengulang label atau manfaat yang sama.
-    * **Alasan Penjelasan (Maks. 70 kata):** Buat argumen penjualan yang ringkas, logis, dan persuasif.
-        * **Fokus pada Manfaat Unik:** Jelaskan satu atau dua poin utama yang paling relevan. Pastikan manfaat ini unik dan berbeda dari unit lain.
-        * **Wajib Hubungkan Spesifikasi dengan Manfaat Pelanggan:** Kaitkan spesifikasi teknis (seperti tipe mesin, torsi, atau dimensi) dengan manfaat nyata yang dirasakan pelanggan. **Jangan hanya menyebutkan spesifikasi tanpa penjelasan manfaatnya**. Contoh: "Mesin 4HK1-TCC bertenaga memastikan pengiriman paket ke pelosok lancar tanpa kendala tanjakan."
-        * **Hindari Pengulangan Manfaat:** Jika satu unit dijelaskan unggul karena "daya angkutnya", unit lain harus dijelaskan dengan manfaat yang berbeda, misalnya "irit bahan bakar" atau "gesit di jalan sempit".
-        * **Gunakan Bahasa Sales:** Tulis dengan bahasa yang ringkas, jelas, dan natural agar mudah disampaikan salesman ke calon pembeli.
-
----
-
-**Format Output:**
-
+Pembuatan Label & Alasan:
+    - Strategi Diferensiasi: Identifikasi keunggulan utama dari setiap unit. Jika keunggulan utama dua unit terlihat sama (misalnya, sama-sama bagus dalam muatan), jangan fokus pada keunggulan tersebut. Alihkan fokus ke keunggulan unik lain yang membedakan unit tersebut, seperti efisiensi bahan bakar, tenaga yang lebih kuat, dimensi kompak untuk manuver di kota, performa mesin di tanjakan, atau ketahanan mesin untuk rute jarak jauh. Ini memastikan setiap rekomendasi memiliki argumen penjualan yang berbeda dan kuat.
+    - **Label Komersial**: Buat label 2-3 kata yang menarik, mudah diingat, dan menonjolkan keunggulan unik (Unique Selling Point) dari setiap unit dalam konteks perbandingannya.
+    - **LABEL harus singkat (maksimal 4 kata) dan mewakili alasan keunggulan dari unit tersebut. 
+    - Label antar unit yang berbeda **HARUS unik dan tidak boleh sama**. Gunakan variasi kata dan makna yang berbeda.
+        - Contoh yang DILARANG: saat label GIGA FRR Q "Muatan Lebih", label GIGA FVR P "Volume Angkut Maksimal" atau "Muatan Maksimal" atau "Volume Angkut Optimal" atau sejenisnya.
+        - Contoh yang DIANJURKAN: Jika GIGA FRR Q fokus pada "Muatan Lebih", pastikan GIGA FVR P tidak menggunakan label yang berhubungan dengan muatan, melainkan sesuatu yang lain seperti "Kapasitas Tangki Besar", "Lebih Bertenaga", dan lainnya.
+        - **Contoh Label**: "Muatan Lebih", "Gesit di Kota", "Irit Maksimal", "Kapasitas Terbaik", "Solusi Ekonomis"
+    - Label JANGAN mengandung kata-kata umum yang bersifat subjektif atau umum yang tidak memberikan informasi spesifik (contoh: "handal", "kuat", "efisien", "tangguh", "terbaik", "paling sesuai", "responsif", dan sejenisnya).
+    - PANDUAN UMUM PEMBERIAN LABEL:
+        - Umumnya, unit GIGA memiliki keunggulan pada kapasitas muatan dan kubikasi angkut, sehingga label seperti "Kapasitas Maksimal", "Muatan Lebih", "Volume Angkut Maksimal" seringkali cocok untuk unit GIGA.
+        - Unit ELF NLR biasanya unggul pada dimensi kompak dan efisiensi bahan bakar, sehingga label seperti "Gesit di Kota", "Irit Maksimal", "Solusi Ekonomis" seringkali sesuai.
+        - Unit D-MAX SC dan TRAGA PICK UP seringkali menonjol pada fleksibilitas dan efisiensi, sehingga label seperti "Fleksibel & Irit", "Solusi Serbaguna", "Ekonomis & Tangguh" seringkali relevan.
+        - Namun, jangan terpaku pada panduan ini. **Selalu sesuaikan label dengan keunggulan unik yang paling menonjol dari setiap unit dalam konteks kebutuhan pelanggan.**
+    - Alasan Penjelasan: Penjelasan dapat terdiri dari beberapa poin.
+        - Isi Alasan:
+            - Fokus pada keunggulan utama yang paling relevan dengan kebutuhan pelanggan.
+            - Alasan untuk tiap unit tidak perlu sama banyaknya dan sama aspeknya (misalnya semua tentang ukuran dan mesin), tetapi harus cukup untuk menjelaskan keunggulan utama unit tersebut.
+            - Dalam alasan, kaitkan keunggulan tersebut dengan kebutuhan spesifik pelanggan sehingga memberikan solusi yang tepat dan sesuai dengan kebutuhan spesifik pelanggan.
+            - Pastikan setiap penjelasan yang diberikan sejalan dengan konteks kebutuhan pelanggan. Contoh: Jika pelanggan membutuhkan kendaraan untuk rute "On-Road Datar", jangan jelaskan keunggulan kendaraan untuk menanjak.
+            - Setiap keunggulan harus didukung oleh **spesifikasi teknis konkret** (contoh: "mesin 4JA1-L," "suspensi Double Spring Leaf).
+            - Jelaskan **manfaat nyata dan konkret** dari spesifikasi tersebut bagi pelanggan.
+            - Gunakan bahasa yang lugas dan tidak menimbulkan pertanyaan. Hindari kata-kata yang tidak dapat dikuantifikasi jika tidak ada data pendukung. Gunakan frasa seperti "mengurangi frekuensi pengiriman" atau "menghemat biaya operasional."
+            - JANGAN gunakan kata-kata umum yang bersifat subjektif atau umum yang tidak memberikan informasi spesifik (contoh: "handal", "kuat", "efisien", "tangguh", "terbaik", "paling sesuai", "responsif", dan sejenisnya).
+            - JANGAN mengulang kata atau frasa yang sama di beberapa alasan. Setiap poin harus unik dan menambah nilai.
+        - **Contoh Alasan yang baik**:
+            - Kapasitas Muat Luas: Ukuran kargo sebesar 6440mm x 2400mm x 2444mm sehingga dapat mengangkut lebih banyak muatan dalam sekali jalan, mengurangi frekuensi pengiriman.
+            - Hemat Biaya Operasional: Mesin 4JA1-L terkenal sangat irit bahan bakar karena menggunakan sistem injeksi bahan bakar mekanis. Sistem ini lebih simpel dan tangguh, tidak membutuhkan banyak sensor elektronik seperti sistem common rail, sehingga sangat efektif dalam mengontrol konsumsi solar. Kombinasi desain mesin yang efisien dengan sistem mekanis yang minim kerumitan ini membuat penggunaan bahan bakar menjadi optimal.
+Format Output:
 Kembalikan rekomendasi untuk setiap unit secara berurutan, dimulai dari skor tertinggi ke terendah. Gunakan format yang sangat spesifik ini. Jangan sertakan teks, format, atau karakter tambahan di luar yang diminta.
 
 Unit: [Nama Unit]
-LABEL: [Label 2-3 kata Anda di sini]
-ALASAN: [Penjelasan detail Anda di sini]
+LABEL: [Label 2-4 kata Anda di sini]
+ALASAN:
+    - [Poin keunggulan 1]
+    - [Poin keunggulan 2]
+    - [Poin keunggulan x]
 
 ---
 
 Unit: [Nama Unit]
-LABEL: [Label 2-3 kata Anda di sini]
-ALASAN: [Penjelasan detail Anda di sini]
+LABEL: [Label 2-4 kata Anda di sini]
+ALASAN:
+    - [Poin keunggulan 1]
+    - [Poin keunggulan 2]
+    - [Poin keunggulan x]
 
 ---
 
 Unit: [Nama Unit]
-LABEL: [Label 2-3 kata Anda di sini]
-ALASAN: [Penjelasan detail Anda di sini]
+LABEL: [Label 2-4 kata Anda di sini]
+ALASAN: 
+    - [Poin keunggulan 1]
+    - [Poin keunggulan 2]
+    - [Poin keunggulan x]
         """
     
     def _parse_structured_response(self, response_text: str, product_name: str) -> Optional[Dict[str, Any]]:
         try:
             lines = response_text.split('\n')
             label = "Great Choice"
-            reason = "This vehicle offers excellent value and performance suitable for your needs."
+            reasons_list = []
+            parsing_reasons = False
             
             for line in lines:
                 line = line.strip()
+                
                 if line.upper().startswith('LABEL:'):
                     label = line[6:].strip()
+                    parsing_reasons = False
                 elif line.upper().startswith('ALASAN:'):
-                    reason = line[7:].strip()
-                elif line.upper().startswith('REASON:'):
-                    reason = line[7:].strip()
-            
+                    parsing_reasons = True
+                    continue
+                elif line.startswith('-') and parsing_reasons:
+                    reason_point = line.lstrip('- ').strip()
+                    if reason_point:  # Only add non-empty reasons
+                        reasons_list.append(reason_point)
+                elif line.strip() == '---':
+                    parsing_reasons = False
+
+            # If no reasons were found, use a default list
+            if not reasons_list:
+                reasons_list.append("This vehicle offers excellent value and performance suitable for your needs.")
+
             label = label.replace('"', '').replace("'", '').strip()
             
             return {
                 "product_name": product_name,
                 "label": label,
-                "reason": reason
+                "reason": reasons_list  # Changed this to return the list directly
             }
             
         except Exception as e:
@@ -496,7 +526,7 @@ ALASAN: [Penjelasan detail Anda di sini]
             return {
                 "product_name": product_name,
                 "label": "Great Choice",
-                "reason": "This vehicle offers excellent value and performance suitable for your needs."
+                "reason": ["This vehicle offers excellent value and performance suitable for your needs."]
             }
             
     def process_criteria_to_recommendations(self, user_criteria: CriteriaInput) -> List[Dict[str, Any]]:
@@ -521,6 +551,7 @@ ALASAN: [Penjelasan detail Anda di sini]
             
             # Step 3: Generate context based on user criteria
             context = self._generate_context_from_criteria(user_criteria)
+            logger.info(f"Generated context for AI: {context}")
             
             # Step 4: Get structured recommendations from AI
             structured_recommendations = self.get_structured_recommendations(recommendations, context)
@@ -532,8 +563,16 @@ ALASAN: [Penjelasan detail Anda di sini]
             raise
 
     def _generate_context_from_criteria(self, user_criteria: CriteriaInput) -> str:
-        """Generate context sentence based on segmentation"""
-        return f"Pembeli memiliki bisnis di bidang {user_criteria.segmentation}"
+        """Generate comprehensive context from all user criteria"""
+        context = f"""
+            Profil Kebutuhan Pelanggan:
+            - Segmentasi Bisnis: {user_criteria.segmentation}
+            - Tipe Jalan yang Dilalui: {user_criteria.tipe_jalan}
+            - Kebutuhan Tonnase: {user_criteria.tonnase}
+            - Kebutuhan Kubikasi Angkutan: {user_criteria.kubikasi_angkutan}
+            - Aplikasi/Jenis Karoseri: {user_criteria.aplikasi}
+                    """.strip()
+        return context
 
 # =============================================================================
 # INITIALIZE SYSTEM
